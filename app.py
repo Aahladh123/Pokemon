@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request,jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 import pymysql
 import pymysql.cursors
 
@@ -22,101 +22,114 @@ def get_connection():
 
 def get_pokemon_stats(name_or_number, cursor):
     try:
-        with cursor as connection:
-            if name_or_number.lower() == 'all':
-                query = "SELECT * FROM pokemon_values;"
-                cursor.execute(query)
-            else:
+        if name_or_number.lower() == 'all':
+            query = "SELECT * FROM pokemon_values;"
+            cursor.execute(query)
+        else:
+            try:
+                query = "SELECT * FROM pokemon_values WHERE Ndex = %s OR UPPER(Pokemon) = UPPER(%s);"
+                cursor.execute(query, (name_or_number, name_or_number))
+            except:
+                # If conversion to integer fails, assume it's a name
+                query = "SELECT * FROM pokemon_values WHERE UPPER(Pokemon) = UPPER(%s);"
+                cursor.execute(query, (name_or_number.lstrip('#').lstrip('0'), name_or_number))
+
+        results = cursor.fetchall()
+
+        json_results = []
+        for result in results:
+            json_result = {
+                "Ndex": result["Ndex"],
+                "Pokemon": result["Pokemon"],
+                "Type1": result["Type1"],
+                "Type2": result["Type2"],
+                "NORMAL": result["NORMAL"],
+                "FIRE": result["FIRE"],
+                "WATER": result["WATER"],
+                "ELECTRIC": result["ELECTRIC"],
+                "GRASS": result["GRASS"],
+                "ICE": result["ICE"],
+                "FIGHTING": result["FIGHTING"],
+                "POISON": result["POISON"],
+                "GROUND": result["GROUND"],
+                "FLYING": result["FLYING"],
+                "PSYCHIC": result["PSYCHIC"],
+                "BUG": result["BUG"],
+                "ROCK": result["ROCK"],
+                "GHOST": result["GHOST"],
+                "DRAGON": result["DRAGON"],
+                "DARK": result["DARK"],
+                "STEEL": result["STEEL"],
+                "FAIRY": result["FAIRY"]
+            }
+            weaknesses = ""
+            strengths = ""
+            neutrals = ""
+            nulls = ""
+
+            for i in range(4, len(cursor.description)):
+                type_name = cursor.description[i][0]
+
                 try:
-                    query = "SELECT * FROM pokemon_values WHERE Ndex = %s OR UPPER(Pokemon) = UPPER(%s);"
-                    cursor.execute(query, (name_or_number,name_or_number))
-                except:
-                    # If conversion to integer fails, assume it's a name
-                    query = "SELECT * FROM pokemon_values WHERE UPPER(Pokemon) = UPPER(%s);"
-                    cursor.execute(query, (name_or_number.lstrip('#').lstrip('0'),name_or_number))
+                    type_effectiveness = float(result[type_name])
+                except ValueError:
+                    type_effectiveness = 0
 
-            results = cursor.fetchall()
+                if type_effectiveness == 0:
+                    if type_name != "Type2":
+                        nulls += type_name + ", "
+                elif type_effectiveness > 1:
+                    weaknesses += type_name + ", "
+                elif type_effectiveness < 1:
+                    strengths += type_name + ", "
+                else:
+                    neutrals += type_name + ", "
 
-            json_results = []
-            for result in results:
-                json_result = {
-                    "Ndex": result["Ndex"],
-                    "Pokemon": result["Pokemon"],
-                    "Type1": result["Type1"],
-                    "Type2": result["Type2"],
-                    "NORMAL": result["NORMAL"],
-                    "FIRE": result["FIRE"],
-                    "WATER": result["WATER"],
-                    "ELECTRIC": result["ELECTRIC"],
-                    "GRASS": result["GRASS"],
-                    "ICE": result["ICE"],
-                    "FIGHTING": result["FIGHTING"],
-                    "POISON": result["POISON"],
-                    "GROUND": result["GROUND"],
-                    "FLYING": result["FLYING"],
-                    "PSYCHIC": result["PSYCHIC"],
-                    "BUG": result["BUG"],
-                    "ROCK": result["ROCK"],
-                    "GHOST": result["GHOST"],
-                    "DRAGON": result["DRAGON"],
-                    "DARK": result["DARK"],
-                    "STEEL": result["STEEL"],
-                    "FAIRY": result["FAIRY"]
-                }
-                weaknesses = ""
-                strengths = ""
-                neutrals = ""
-                nulls = ""
+            weaknesses = weaknesses[:-2]
+            strengths = strengths[:-2]
+            neutrals = neutrals[:-2]
+            nulls = nulls[:-2]
 
-                for i in range(4, len(cursor.description)):
-                    type_name = cursor.description[i][0]
+            json_result["Weaknesses"] = weaknesses
+            json_result["Strengths"] = strengths
+            json_result["Neutrals"] = neutrals
+            json_result["Nulls"] = nulls
 
-                    try:
-                        type_effectiveness = float(result[type_name])
-                    except ValueError:
-                        type_effectiveness = 0
+            json_results.append(json_result)
 
-                    if type_effectiveness == 0:
-                        if type_name != "Type2":
-                            nulls += type_name + ", "
-                    elif type_effectiveness > 1:
-                        weaknesses += type_name + ", "
-                    elif type_effectiveness < 1:
-                        strengths += type_name + ", "
-                    else:
-                        neutrals += type_name + ", "
-
-                weaknesses = weaknesses[:-2]
-                strengths = strengths[:-2]
-                neutrals = neutrals[:-2]
-                nulls = nulls[:-2]
-
-                json_result["Weaknesses"] = weaknesses
-                json_result["Strengths"] = strengths
-                json_result["Neutrals"] = neutrals
-                json_result["Nulls"] = nulls
-
-                json_results.append(json_result)
-
-            return json_results
+        return json_results
 
     except Exception as e:
         # Handle exceptions, log errors, or raise them if necessary
         print(f"Error: {e}")
         return None
 
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     selectedPokemon = None
+    selectedType2 = None
+    selectedType1 = None
 
     with get_connection() as connection, connection.cursor() as cursor:
         if request.method == 'POST':
             pokemon_value = request.form['search_term']
+            selectedType2 = request.form.get('type2_button')
+            selectedType1 = request.form.get('type1_button')
+
+            print(f"Debug: pokemon_value={pokemon_value}, selectedType1={selectedType1}, selectedType2={selectedType2}")
 
             # If the input is a number, pad with leading zeros
             if pokemon_value.isdigit():
                 pokemon_value = f"#{int(pokemon_value):04d}"
+
+            # Logic for setting Type1 and Type2 based on user selection order
+            if selectedType1 == selectedType2:
+                selectedType1 = None
+                selectedType2 = None
+            elif selectedType2:
+                selectedType1 = None
+
+            print(f"Debug: updated selectedType1={selectedType1}, selectedType2={selectedType2}")
 
             pokemon_data = get_pokemon_stats(pokemon_value, cursor)
 
@@ -128,15 +141,34 @@ def index():
             default_pokemon = 'All'
             pokemon_data = get_pokemon_stats(default_pokemon, cursor)
 
-    return render_template('index_v2.0.html', pokemonData=pokemon_data, selectedPokemon=selectedPokemon)
+    # Print values for debugging
+    print(f"Debug: Final selectedType1={selectedType1}, selectedType2={selectedType2}")
+
+    # Render the template with the modified data
+    return render_template('index.html', pokemonData=pokemon_data, selectedPokemon=selectedPokemon,
+                           selectedType1=selectedType1, selectedType2=selectedType2)
 
 @app.route('/suggestions')
 def get_suggestions():
     term = request.args.get('term', '')
+    selectedType1 = request.args.get('type1')
+    selectedType2 = request.args.get('type2')
+
     with get_connection() as connection, connection.cursor() as cursor:
-        query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s;"
-        cursor.execute(query, (f"%{term}%",))
-        suggestions = [result['Pokemon'] for result in cursor.fetchall() if result['Pokemon'].lower().startswith(term.lower())]
+        query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s"
+        params = [f"{term}%"]
+
+        if selectedType1:
+            query += " AND Type1 = %s"
+            params.append(selectedType1)
+
+        if selectedType2:
+            query += " AND Type2 IS NULL"
+
+        query += " ORDER BY Pokemon;"
+        cursor.execute(query, params)
+
+        suggestions = [result['Pokemon'] for result in cursor.fetchall()]
         return jsonify(suggestions)
 
 @app.route('/autocomplete', methods=['GET'])
@@ -145,10 +177,8 @@ def autocomplete():
     with get_connection() as connection, connection.cursor() as cursor:
         query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s ORDER BY Pokemon;"
         cursor.execute(query, (f"{term}%",))
-        suggestions = [result['Pokemon'] for result in cursor.fetchall() if
-                       result['Pokemon'].lower().startswith(term.lower())]
+        suggestions = [result['Pokemon'] for result in cursor.fetchall()]
         return jsonify(suggestions)
-
 
 if __name__ == '__main__':
     app.run(debug=True)

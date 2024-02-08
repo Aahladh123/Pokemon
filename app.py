@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 import pymysql
-import pymysql.cursors
 
 app = Flask(__name__)
 
@@ -123,11 +122,13 @@ def index():
                 pokemon_value = f"#{int(pokemon_value):04d}"
 
             # Logic for setting Type1 and Type2 based on user selection order
-            if selectedType1 == selectedType2:
-                selectedType1 = None
-                selectedType2 = None
-            elif selectedType2:
-                selectedType1 = None
+            if selectedType2:
+                if selectedType1 == selectedType2:
+                    # If Type1 and Type2 are the same, set Type2 to None
+                    selectedType2 = None
+                else:
+                    # Swap Type1 and Type2
+                    selectedType1, selectedType2 = selectedType2, selectedType1
 
             print(f"Debug: updated selectedType1={selectedType1}, selectedType2={selectedType2}")
 
@@ -141,8 +142,9 @@ def index():
             default_pokemon = 'All'
             pokemon_data = get_pokemon_stats(default_pokemon, cursor)
 
-    # Print values for debugging
-    print(f"Debug: Final selectedType1={selectedType1}, selectedType2={selectedType2}")
+    # Print values for debugging if either selectedType1 or selectedType2 is not None
+    if selectedType1 is not None or selectedType2 is not None:
+        print(f"Debug: Final selectedType1={selectedType1}, selectedType2={selectedType2}")
 
     # Render the template with the modified data
     return render_template('index.html', pokemonData=pokemon_data, selectedPokemon=selectedPokemon,

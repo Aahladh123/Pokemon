@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon Search</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa; /* Set your desired background color */
+        }
+
+        form {
+            margin: 10px; /* Decreased margin */
+            padding: 10px; /* Decreased padding */
+            background-color: transparent; /* Set to transparent */
+            border-radius: 8px;
+            box-shadow: none; /* Removed the box shadow */
+            display: inline-block; /* Align the form as inline-block */
+            position: relative; /* Added position:relative */
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        input#search_term {
+            width: calc(70% - 20px); /* Adjusted width */
+            padding: 8px; /* Decreased padding */
+            box-sizing: border-box;
+            border: none; /* Removed the border */
+            border-radius: 4px;
+            margin-bottom: 0; /* Decreased margin */
+            background-color: #f0f0f0; /* Set the background color to a different color */
+            color: #333; /* Set the text color to a different color */
+        }
+
+        button#search_button {
+            display: inline-block; /* Display as inline-block */
+            width: calc(30% - 20px); /* Adjusted width */
+            padding: 8px; /* Decreased padding */
+            background-color: #4caf50; /* Set your desired button color */
+            color: #ffffff; /* Set your desired text color */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Style for suggestions dropdown */
+       #suggestions-container {
+    position: absolute;
+    width: calc(100%-10px); /* Adjusted width to increase to the right side */
+    max-height: 400px; /* Increased max-height */
+    overflow-y: auto;
+    border: none; /* Removed the border */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #f0f0f0; /* Set the background color to a different color */
+    color: #333; /* Set the text color to a different color */
+    z-index: 1;
+    top: calc(40%); /* Adjusted top to appear right below the search bar */
+    left: 20px; /* Adjusted left */
+
+}
+
+
+
+        .suggestion-item {
+            padding: 6px; /* Decreased padding */
+            cursor: pointer;
+            border-bottom: 1px solid #ced4da;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none; /* Remove border for the last suggestion item */
+        }
+
+        .suggestion-item:hover {
+            background-color: #e0e0e0; /* Set the hover background color to a different color */
+        }
+
+        .table {
+            margin-top: 10px; /* Decreased margin-top */
+        }
+
+        p {
+            font-size: 16px; /* Decreased font size */
+            color: #6c757d;
+        }
+
+        /* Optionally adjust the font size of the search bar text */
+        input#search_term::placeholder {
+            font-size: 14px;
+        }
+
+        /* Optionally adjust the size of the search button */
+        button[type="submit"] {
+            padding: 8px; /* Reduced padding */
+            font-size: 14px; /* Adjust font size */
+        }
+
+        /* Adjust CSS to remove margins around the search bar */
+        .search-bar-container {
+            margin: 0; /* Remove any margin */
+            padding: 10px; /* Increase padding */
+        }
+
+        .search-bar-container {
+            margin-bottom: 20px; /* Add margin-bottom to separate from other elements */
+        }
+
+        .search-bar-container input#search_term {
+            width: calc(100%); /* Adjusted width */
+            box-sizing: border-box;
+            padding: 12px; /* Increased padding */
+            font-size: 16px; /* Increased font size */
+            border: none; /* Remove the border */
+            border-bottom: 1px solid #ccc; /* Add bottom border */
+            display: inline-block; /* Ensure the input is displayed inline */
+        }
+
+        /* Optionally adjust the font size of the search bar text */
+        .search-bar-container input#search_term::placeholder {
+            font-size: 16px; /* Increased font size */
+        }
+
+        /* Optionally adjust the size of the search button */
+        .search-bar-container button[type="submit"] {
+            padding: 12px; /* Increased padding */
+            font-size: 16px; /* Increased font size */
+            margin-left: 10px; /* Add margin to separate from the search bar */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pokemon Search</h1>
+        <form method="post" action="/">
+            <div class="form-group search-bar-container"> <!-- Add class to adjust margins -->
+                <input type="text" class="form-control" id="search_term" name="search_term" placeholder="Search Pokemon...">
+            </div>
+            <button type="submit" class="btn btn-primary">Search</button> <!-- Search button removed -->
+            <div id="suggestions-container">
+                <!-- Suggestions will be dynamically added here -->
+            </div>
+        </form>
+
+        {% if pokemonData %}
+        <div class="mt-4">
+            <h3>Pokemon Data</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ndex</th>
+                        <th>Pokemon</th>
+                        <th>Type 1</th>
+                        <th>Type 2</th>
+                        <th>Weaknesses</th>
+                        <th>Strengths</th>
+                        <th>Neutrals</th>
+                        <th>Nulls</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pokemon in pokemonData %}
+                    <tr>
+                        <td>{{ pokemon.Ndex }}</td>
+                        <td>{{ pokemon.Pokemon }}</td>
+                        <td>{{ pokemon.Type1 }}</td>
+                        <td>{{ pokemon.Type2 or 'None' }}</td>
+                        <td>{{ pokemon.Weaknesses }}</td>
+                        <td>{{ pokemon.Strengths }}</td>
+                        <td>{{ pokemon.Neutrals }}</td>
+                        <td>{{ pokemon.Nulls }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script>
+        $(document).ready(function () {
+        $("#search_term").on("input", function () {
+            var term = $(this).val();
+            $.get("/autocomplete", { term: term }, function (data) {
+                // Update suggestions container with HTML snippet
+                $("#suggestions-container").html(data);
+                // Display suggestions
+                $("#suggestions-container").show();
+            });
+        });
+            // Handle suggestion click
+            $(document).on("click", ".suggestion-item", function () {
+                $("#search_term").val($(this).text());
+                $("#suggestions-container").hide(); // Hide suggestions after click
+            });
+        });
+    </script>
+</body>
+</html>

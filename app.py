@@ -2,14 +2,11 @@ from flask import Flask, render_template, request, jsonify
 import pymysql
 
 app = Flask(__name__)
-version=open("app.py","r").read()
-
 
 DB_HOST = '127.0.0.1'
 DB_USER = 'root'
 DB_PASSWORD = 'marutiaugust16@gmail.com'
 DB_NAME = 'my_database'
-
 
 def get_connection():
     return pymysql.connect(
@@ -19,7 +16,6 @@ def get_connection():
         db=DB_NAME,
         cursorclass=pymysql.cursors.DictCursor
     )
-
 
 def get_pokemon_stats(name_or_number, cursor):
     try:
@@ -104,6 +100,28 @@ def get_pokemon_stats(name_or_number, cursor):
         print(f"Error: {e}")
         return None
 
+def get_suggestions(term, selectedType1=None, selectedType2=None):
+    with get_connection() as connection, connection.cursor() as cursor:
+        query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s"
+        params = [f"{term}%"]
+
+        if selectedType1:
+            query += " AND (Type1 = %s OR Type2 = %s)"
+            params.extend([selectedType1, selectedType1])
+
+        if selectedType2:
+            query += " AND (Type1 = %s OR Type2 = %s)"
+            params.extend([selectedType2, selectedType2])
+
+        query += " ORDER BY Pokemon;"
+        cursor.execute(query, params)
+
+        suggestions = cursor.fetchall()
+
+        return suggestions
+
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     selectedPokemon = None
@@ -115,8 +133,6 @@ def index():
             pokemon_value = request.form['search_term']
             selectedType2 = request.form.get('type2_button')
             selectedType1 = request.form.get('type1_button')
-
-            print(f"Debug: pokemon_value={pokemon_value}, selectedType1={selectedType1}, selectedType2={selectedType2}")
 
             # If the input is a number, pad with leading zeros
             if pokemon_value.isdigit():
@@ -131,8 +147,6 @@ def index():
                     # Swap Type1 and Type2
                     selectedType1, selectedType2 = selectedType2, selectedType1
 
-            print(f"Debug: updated selectedType1={selectedType1}, selectedType2={selectedType2}")
-
             pokemon_data = get_pokemon_stats(pokemon_value, cursor)
 
             # Set selectedPokemon if a specific Pokemon is queried
@@ -143,45 +157,29 @@ def index():
             default_pokemon = 'All'
             pokemon_data = get_pokemon_stats(default_pokemon, cursor)
 
-    # Print values for debugging if either selectedType1 or selectedType2 is not None
-    if selectedType1 is not None or selectedType2 is not None:
-        print(f"Debug: Final selectedType1={selectedType1}, selectedType2={selectedType2}")
-
-    # Render the template with the modified data
     return render_template('index.html', pokemonData=pokemon_data, selectedPokemon=selectedPokemon,
                            selectedType1=selectedType1, selectedType2=selectedType2)
 
 @app.route('/suggestions')
-def get_suggestions():
+def suggestions_route():
     term = request.args.get('term', '')
     selectedType1 = request.args.get('type1')
     selectedType2 = request.args.get('type2')
+    suggestions = get_suggestions(term, selectedType1, selectedType2)
+    return jsonify(suggestions)
 
-    with get_connection() as connection, connection.cursor() as cursor:
-        query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s"
-        params = [f"{term}%"]
-
-        if selectedType1:
-            query += " AND Type1 = %s"
-            params.append(selectedType1)
-
-        if selectedType2:
-            query += " AND Type2 IS NULL"
-
-        query += " ORDER BY Pokemon;"
-        cursor.execute(query, params)
-
-        suggestions = [result['Pokemon'] for result in cursor.fetchall()]
-        return jsonify(suggestions)
-
-@app.route('/autocomplete', methods=['GET'])
+@app.route('/autocomplete')
 def autocomplete():
     term = request.args.get('term', '')
-    with get_connection() as connection, connection.cursor() as cursor:
-        query = "SELECT DISTINCT Pokemon FROM pokemon_values WHERE Pokemon LIKE %s ORDER BY Pokemon;"
-        cursor.execute(query, (f"{term}%",))
-        suggestions = [result['Pokemon'] for result in cursor.fetchall()]
-        return jsonify(suggestions)
+    selectedType1 = request.args.get('type1')
+    selectedType2 = request.args.get('type2')
+    suggestions = get_suggestions(term, selectedType1, selectedType2)
+    html_suggestions = ""
+    for suggestion in suggestions:
+        html_suggestions += f"<div class='suggestion-item'>{suggestion['Pokemon']}</div>"
+
+    return html_suggestions
+    return jsonify(suggestions)
 
 if __name__ == '__main__':
     app.run(debug=True)
